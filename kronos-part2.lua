@@ -73,7 +73,6 @@ local function teleportTo(player)
 	myRoot.CFrame = CFrame.new(targetRoot.Position + Vector3.new(0, 0, 3))
 end
 
--- Command system
 local function setToggle(key, value)
 	CONFIG[key] = value
 	for _, refresh in ipairs(refreshers) do refresh() end
@@ -98,7 +97,7 @@ local COMMAND_LIST = {
 	{ cmd = "/skeleton", desc = "Toggle skeleton ESP", key = "ShowSkeleton", label = "Skeleton" },
 	{ cmd = "/noclip", desc = "Walk through walls", key = "Noclip", label = "Noclip" },
 	{ cmd = "/jump", desc = "Toggle super jump", key = "SuperJump", label = "Super Jump" },
-	{ cmd = "/ij", desc = "Toggle infinite jump", key = "InfiniteJump", label = "Infinite Jump" },
+	{ cmd = "/inf", desc = "Toggle infinite jump", key = "InfiniteJump", label = "Infinite Jump" },
 	{ cmd = "/fly", desc = "Toggle fly", key = "Fly", label = "Fly" },
 	{ cmd = "/sfly", desc = "Toggle silent fly", key = "SilentFly", label = "Silent Fly" },
 	{ cmd = "/vfly", desc = "Toggle vehicle fly", key = "VehicleFly", label = "Vehicle Fly" },
@@ -107,9 +106,8 @@ local COMMAND_LIST = {
 	{ cmd = "/float", desc = "Toggle walk-on-air float", key = "Float", label = "Float" },
 	{ cmd = "/tptool", desc = "Toggle TP tool", key = "TPTool", label = "TP Tool" },
 	{ cmd = "/walltp", desc = "Toggle wall TP", key = "WallTP", label = "Wall TP" },
-	{ cmd = "/spam", desc = "Toggle tool spam", key = "Spam", label = "Spam" },
+	{ cmd = "/spam", desc = "Toggle chat spam", key = "Spam", label = "Chat Spam" },
 	{ cmd = "/xray", desc = "Toggle X-Ray", key = "XRay", label = "X-Ray" },
-	{ cmd = "/spectate", desc = "Toggle spectate mode", key = "Spectate", label = "Spectate" },
 	{ cmd = "/antivoid", desc = "Toggle anti-void", key = "AntiVoid", label = "Anti-Void" },
 	{ cmd = "/antifling", desc = "Toggle anti-fling", key = "AntiFling", label = "Anti-Fling" },
 	{ cmd = "/speed", desc = "Toggle custom speed", key = "UseCustomSpeed", label = "Custom Speed" },
@@ -125,7 +123,7 @@ local COMMAND_LIST = {
 	{ cmd = "/ws <n>", desc = "Set walk speed" },
 	{ cmd = "/save", desc = "Save current config" },
 	{ cmd = "/load", desc = "Load saved config" },
-	{ cmd = "/rejoin", desc = "Rejoin this server" },
+	{ cmd = "/rj", desc = "Rejoin this server" },
 	{ cmd = "/hop", desc = "Server hop" },
 	{ cmd = "/help", desc = "Open this help panel" },
 }
@@ -143,6 +141,7 @@ local COMMANDS = {
 	noclip = function() toggleFeature("Noclip", "Noclip") end,
 	jump = function() toggleFeature("SuperJump", "Super Jump") end,
 	superjump = function() toggleFeature("SuperJump", "Super Jump") end,
+	inf = function() toggleFeature("InfiniteJump", "Infinite Jump") end,
 	ij = function() toggleFeature("InfiniteJump", "Infinite Jump") end,
 	infinitejump = function() toggleFeature("InfiniteJump", "Infinite Jump") end,
 	fly = function() toggleFeature("Fly", "Fly") end,
@@ -156,9 +155,8 @@ local COMMANDS = {
 	float = function() toggleFeature("Float", "Float") end,
 	tptool = function() toggleFeature("TPTool", "TP Tool") end,
 	walltp = function() toggleFeature("WallTP", "Wall TP") end,
-	spam = function() toggleFeature("Spam", "Spam") end,
+	spam = function() toggleFeature("Spam", "Chat Spam") end,
 	xray = function() toggleFeature("XRay", "X-Ray") end,
-	spectate = function() toggleFeature("Spectate", "Spectate") end,
 	antivoid = function() toggleFeature("AntiVoid", "Anti-Void") end,
 	antifling = function() toggleFeature("AntiFling", "Anti-Fling") end,
 	speed = function() toggleFeature("UseCustomSpeed", "Custom Speed") end,
@@ -218,6 +216,10 @@ local COMMANDS = {
 			refreshKeybindChips()
 		else notify("No saved config", "warn") end
 	end,
+	rj = function()
+		notify("Rejoining...", "info")
+		TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, localPlayer)
+	end,
 	rejoin = function()
 		notify("Rejoining...", "info")
 		TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, localPlayer)
@@ -243,7 +245,6 @@ local function handleCommand(message)
 	return true
 end
 
--- Command box
 local cmdBox = create("Frame", {
 	Name = "CommandBox",
 	AnchorPoint = Vector2.new(0.5, 0),
@@ -302,7 +303,6 @@ local function closeCommandBox()
 	updateBlur()
 end
 
--- Help panel
 local HELP_WIDTH = 320
 local HELP_HEIGHT = 400
 
@@ -453,8 +453,6 @@ makeDraggable(helpHeader, helpPanel)
 COMMANDS.help = function() openHelpPanel() end
 COMMANDS.cmds = function() openHelpPanel() end
 
-K.helpButton = nil
-
 cmdInput.FocusLost:Connect(function(enterPressed)
 	if enterPressed then
 		local text = cmdInput.Text
@@ -468,7 +466,6 @@ cmdInput.FocusLost:Connect(function(enterPressed)
 	closeCommandBox()
 end)
 
--- Keybind handler
 local function isTypingInBox()
 	local focused = UserInputService:GetFocusedTextBox()
 	if focused then return true end
@@ -494,7 +491,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 		K.setCapturingKeyFor(nil)
 		return
-	end	if gameProcessed then return end
+	end
+
+	if gameProcessed then return end
 
 	if input.KeyCode == CONFIG.CommandBoxKey and not isTypingInBox() then
 		if cmdBox.Visible then closeCommandBox() else openCommandBox(CONFIG.CommandPrefix) end
@@ -519,7 +518,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 end)
 
--- ESP
 local guiFolder = create("Folder", { Name = "KronosLabels" }, playerGui)
 
 local overlayGui = create("ScreenGui", {
@@ -681,10 +679,17 @@ for _, player in ipairs(Players:GetPlayers()) do setupPlayer(player) end
 Players.PlayerAdded:Connect(setupPlayer)
 Players.PlayerRemoving:Connect(removeESP)
 
+local GUI_INSET = 36
+
 local function positionLine(line, a, b, color, thickness)
-	local delta = b - a
+	local ax = a.X
+	local ay = a.Y + GUI_INSET
+	local bx = b.X
+	local by = b.Y + GUI_INSET
+
+	local delta = Vector2.new(bx - ax, by - ay)
 	line.Size = UDim2.fromOffset(delta.Magnitude, thickness)
-	line.Position = UDim2.fromOffset((a.X + b.X) / 2, (a.Y + b.Y) / 2)
+	line.Position = UDim2.fromOffset((ax + bx) / 2, (ay + by) / 2)
 	line.Rotation = math.deg(math.atan2(delta.Y, delta.X))
 	line.BackgroundColor3 = color
 	line.BackgroundTransparency = 0
@@ -692,166 +697,174 @@ local function positionLine(line, a, b, color, thickness)
 end
 
 RunService.RenderStepped:Connect(function()
-	local camera = workspace.CurrentCamera
-	local viewport = camera and camera.ViewportSize or Vector2.zero
-	local myChar = localPlayer.Character
-	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	local ok, err = pcall(function()
+		local camera = workspace.CurrentCamera
+		if not camera then return end
+		local viewport = camera.ViewportSize or Vector2.new(1920, 1080)
+		local myChar = localPlayer.Character
+		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
 
-	for player, data in pairs(locatedPlayers) do
-		local char = player.Character
-		local root = char and char:FindFirstChild("HumanoidRootPart")
-		if root and data.frame then
-			local pos = camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3.5, 0))
-			if pos.Z > 0 then
-				local cx = math.clamp(pos.X, 60, viewport.X - 60)
-				local cy = math.clamp(pos.Y, 20, viewport.Y - 20)
-				data.frame.Position = UDim2.fromOffset(cx - 40, cy)
-				data.frame.Visible = true
-			else
+		for player, data in pairs(locatedPlayers) do
+			local char = player.Character
+			local root = char and char:FindFirstChild("HumanoidRootPart")
+			if root and data.frame then
+				local pos = camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3.5, 0))
+				if pos.Z > 0 then
+					local cx = math.clamp(pos.X, 60, viewport.X - 60)
+					local cy = math.clamp(pos.Y + GUI_INSET, 20, viewport.Y + GUI_INSET - 20)
+					data.frame.Position = UDim2.fromOffset(cx - 40, cy)
+					data.frame.Visible = true
+				else
+					data.frame.Visible = false
+				end
+			elseif data.frame then
 				data.frame.Visible = false
 			end
-		elseif data.frame then
-			data.frame.Visible = false
 		end
-	end
 
-	for player, data in pairs(tracked) do
-		local visible = myRoot ~= nil and data.root and data.root.Parent ~= nil
-		local showLabel = false
-		local showTracer = false
-
-		if visible then
-			local distance = (data.root.Position - myRoot.Position).Magnitude
-			local team = isTeammate(player)
-			visible = distance <= CONFIG.MaxDistance and (not team or CONFIG.ShowTeammates)
+		for player, data in pairs(tracked) do
+			local visible = myRoot ~= nil and data.root and data.root.Parent ~= nil
+			local showLabel = false
+			local showTracer = false
 
 			if visible then
-				local color = getColor(player)
-				data.highlight.FillColor = color
-				data.highlight.OutlineColor = color
-				data.label.TextColor3 = color
-				data.label.TextSize = CONFIG.LabelSize
+				local distance = (data.root.Position - myRoot.Position).Magnitude
+				local team = isTeammate(player)
+				visible = distance <= CONFIG.MaxDistance and (not team or CONFIG.ShowTeammates)
 
-				data.highlight.FillTransparency = CONFIG.ShowChams and 0 or (CONFIG.Enabled and CONFIG.FillTransparency / 100 or 1)
-				data.highlight.OutlineTransparency = CONFIG.Enabled and 0 or 1
+				if visible then
+					local color = getColor(player)
+					data.highlight.FillColor = color
+					data.highlight.OutlineColor = color
+					data.label.TextColor3 = color
+					data.label.TextSize = CONFIG.LabelSize
 
-				if CONFIG.ShowBox then
-					local head = data.root.Parent and data.root.Parent:FindFirstChild("Head")
-					if head then
-						local top = camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.7, 0))
-						local bottom = camera:WorldToViewportPoint(data.root.Position - Vector3.new(0, 3.2, 0))
-						if top.Z > 0 and bottom.Z > 0 then
-							local h = math.abs(bottom.Y - top.Y)
-							local w = h * 0.6
-							local cx = (top.X + bottom.X) / 2
-							local cy = (top.Y + bottom.Y) / 2
-							data.box.Size = UDim2.fromOffset(w, h)
-							data.box.Position = UDim2.fromOffset(cx - w / 2, cy - h / 2)
-							data.box.Visible = true
-							data.boxStroke.Color = color
-							data.boxStroke.Thickness = CONFIG.BoxThickness
+					data.highlight.FillTransparency = CONFIG.ShowChams and 0 or (CONFIG.Enabled and CONFIG.FillTransparency / 100 or 1)
+					data.highlight.OutlineTransparency = CONFIG.Enabled and 0 or 1
+
+					if CONFIG.ShowBox then
+						local head = data.root.Parent and data.root.Parent:FindFirstChild("Head")
+						if head then
+							local top = camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.7, 0))
+							local bottom = camera:WorldToViewportPoint(data.root.Position - Vector3.new(0, 3.2, 0))
+							if top.Z > 0 and bottom.Z > 0 then
+								local h = math.abs(bottom.Y - top.Y)
+								local w = h * 0.6
+								local cx = (top.X + bottom.X) / 2
+								local cy = (top.Y + bottom.Y) / 2 + GUI_INSET
+								data.box.Size = UDim2.fromOffset(w, h)
+								data.box.Position = UDim2.fromOffset(cx - w / 2, cy - h / 2)
+								data.box.Visible = true
+								data.boxStroke.Color = color
+								data.boxStroke.Thickness = CONFIG.BoxThickness
+							else
+								data.box.Visible = false
+							end
 						else
 							data.box.Visible = false
 						end
 					else
 						data.box.Visible = false
 					end
-				else
-					data.box.Visible = false
-				end
 
-				if CONFIG.ShowHealthBar and data.humanoid then
-					local hp = math.clamp(data.humanoid.Health / math.max(1, data.humanoid.MaxHealth), 0, 1)
-					data.healthFill.Size = UDim2.fromScale(1, hp)
-					data.healthFill.BackgroundColor3 = Color3.new(1 - hp, hp, 0.2)
-					data.healthGui.Enabled = true
-				else
-					data.healthGui.Enabled = false
-				end
+					if CONFIG.ShowHealthBar and data.humanoid then
+						local hp = math.clamp(data.humanoid.Health / math.max(1, data.humanoid.MaxHealth), 0, 1)
+						data.healthFill.Size = UDim2.fromScale(1, hp)
+						data.healthFill.BackgroundColor3 = Color3.new(1 - hp, hp, 0.2)
+						data.healthGui.Enabled = true
+					else
+						data.healthGui.Enabled = false
+					end
 
-				if CONFIG.ShowSkeleton then
-					local character = data.root.Parent
-					local bones = character:FindFirstChild("UpperTorso") and SKELETON_BONES_R15 or SKELETON_BONES_R6
-					local screenPos = {}
-					for _, pair in ipairs(bones) do
-						for _, boneName in ipairs(pair) do
-							if not screenPos[boneName] then
-								local part = character:FindFirstChild(boneName)
-								if part and part:IsA("BasePart") then
-									local vp = camera:WorldToViewportPoint(part.Position)
-									if vp.Z > 0 then
-										screenPos[boneName] = Vector2.new(vp.X, vp.Y)
+					if CONFIG.ShowSkeleton then
+						local character = data.root.Parent
+						local bones = character:FindFirstChild("UpperTorso") and SKELETON_BONES_R15 or SKELETON_BONES_R6
+						local screenPos = {}
+						for _, pair in ipairs(bones) do
+							for _, boneName in ipairs(pair) do
+								if not screenPos[boneName] then
+									local part = character:FindFirstChild(boneName)
+									if part and part:IsA("BasePart") then
+										local vp = camera:WorldToViewportPoint(part.Position)
+										if vp.Z > 0 then
+											screenPos[boneName] = Vector2.new(vp.X, vp.Y)
+										end
 									end
 								end
 							end
 						end
-					end
-					for i, pair in ipairs(bones) do
-						local a = screenPos[pair[1]]
-						local b = screenPos[pair[2]]
-						local line = data.skeletonLines[i]
-						if not line then
-							line = create("Frame", {
-								BackgroundColor3 = color,
-								BorderSizePixel = 0,
-								Visible = false,
-								ZIndex = 2,
-							}, overlayGui)
-							data.skeletonLines[i] = line
+						for i, pair in ipairs(bones) do
+							local a = screenPos[pair[1]]
+							local b = screenPos[pair[2]]
+							local line = data.skeletonLines[i]
+							if not line then
+								line = create("Frame", {
+									BackgroundColor3 = color,
+									BorderSizePixel = 0,
+									Visible = false,
+									ZIndex = 2,
+								}, overlayGui)
+								data.skeletonLines[i] = line
+							end
+							if a and b then positionLine(line, a, b, color, 1)
+							else line.Visible = false end
 						end
-						if a and b then positionLine(line, a, b, color, 1)
-						else line.Visible = false end
+						for i = #bones + 1, #data.skeletonLines do
+							if data.skeletonLines[i] then data.skeletonLines[i].Visible = false end
+						end
+					else
+						for _, line in pairs(data.skeletonLines) do
+							if line then line.Visible = false end
+						end
 					end
-					for i = #bones + 1, #data.skeletonLines do
-						if data.skeletonLines[i] then data.skeletonLines[i].Visible = false end
-					end
-				else
-					for _, line in pairs(data.skeletonLines) do
-						if line then line.Visible = false end
-					end
-				end
 
-				if CONFIG.ShowTracers and camera then
-					local pos = camera:WorldToViewportPoint(data.root.Position)
-					if pos.Z > 0 then
-						local originY = viewport.Y
-						if CONFIG.TracerOrigin == "Center" then originY = viewport.Y / 2
-						elseif CONFIG.TracerOrigin == "Top" then originY = 0 end
-						local from = Vector2.new(viewport.X / 2, originY)
-						local to = Vector2.new(pos.X, pos.Y)
-						local delta = to - from
-						data.tracer.Size = UDim2.fromOffset(delta.Magnitude, CONFIG.TracerThickness)
-						data.tracer.Position = UDim2.fromOffset((from.X + to.X) / 2, (from.Y + to.Y) / 2)
-						data.tracer.Rotation = math.deg(math.atan2(delta.Y, delta.X))
-						data.tracer.BackgroundColor3 = color
-						showTracer = true
+					if CONFIG.ShowTracers and camera then
+						local pos = camera:WorldToViewportPoint(data.root.Position)
+						if pos.Z > 0 then
+							local originY = viewport.Y + GUI_INSET
+							if CONFIG.TracerOrigin == "Center" then originY = viewport.Y / 2 + GUI_INSET
+							elseif CONFIG.TracerOrigin == "Top" then originY = GUI_INSET end
+							local from = Vector2.new(viewport.X / 2, originY)
+							local to = Vector2.new(pos.X, pos.Y + GUI_INSET)
+							local delta = to - from
+							data.tracer.Size = UDim2.fromOffset(delta.Magnitude, CONFIG.TracerThickness)
+							data.tracer.Position = UDim2.fromOffset((from.X + to.X) / 2, (from.Y + to.Y) / 2)
+							data.tracer.Rotation = math.deg(math.atan2(delta.Y, delta.X))
+							data.tracer.BackgroundColor3 = color
+							showTracer = true
+						end
 					end
-				end
 
-				local textParts = {}
-				if CONFIG.ShowNames then table.insert(textParts, player.DisplayName) end
-				if CONFIG.ShowDistance then table.insert(textParts, string.format("[%d]", math.floor(distance))) end
-				showLabel = #textParts > 0
-				data.label.Text = table.concat(textParts, " ")
+					local textParts = {}
+					if CONFIG.ShowNames then table.insert(textParts, player.DisplayName) end
+					if CONFIG.ShowDistance then table.insert(textParts, string.format("[%d]", math.floor(distance))) end
+					showLabel = #textParts > 0
+					data.label.Text = table.concat(textParts, " ")
+				end
+			end
+
+			data.highlight.Enabled = visible and (CONFIG.Enabled or CONFIG.ShowChams)
+			data.gui.Enabled = visible and showLabel
+			data.tracer.Visible = showTracer
+			if not visible then
+				data.box.Visible = false
+				data.healthGui.Enabled = false
+				for _, line in pairs(data.skeletonLines) do
+					if line then line.Visible = false end
+				end
 			end
 		end
-
-		data.highlight.Enabled = visible and (CONFIG.Enabled or CONFIG.ShowChams)
-		data.gui.Enabled = visible and showLabel
-		data.tracer.Visible = showTracer
-		if not visible then
-			data.box.Visible = false
-			data.healthGui.Enabled = false
-			for _, line in pairs(data.skeletonLines) do
-				if line then line.Visible = false end
-			end
+	end)
+	if not ok then
+		if not _G.KronosESPLastWarn or tick() - _G.KronosESPLastWarn > 5 then
+			_G.KronosESPLastWarn = tick()
+			warn("[Kronos ESP] error:", tostring(err))
 		end
 	end
 end)
 
 localPlayer.Chatted:Connect(handleCommand)
 
--- Noclip
 RunService.Stepped:Connect(function()
 	if not CONFIG.Noclip then return end
 	local character = localPlayer.Character
@@ -861,7 +874,6 @@ RunService.Stepped:Connect(function()
 	end
 end)
 
--- Super Jump
 function applySuperJump()
 	local char = localPlayer.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -878,7 +890,6 @@ toggleHandlers.SuperJump = applySuperJump
 localPlayer.CharacterAdded:Connect(function() task.wait(0.2); applySuperJump() end)
 if localPlayer.Character then task.spawn(applySuperJump) end
 
--- Custom Speed
 local function applySpeed()
 	local char = localPlayer.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -890,7 +901,6 @@ toggleHandlers.UseCustomSpeed = applySpeed
 localPlayer.CharacterAdded:Connect(function() task.wait(0.2); applySpeed() end)
 if localPlayer.Character then task.spawn(applySpeed) end
 
--- Anti-AFK
 task.spawn(function()
 	while true do
 		task.wait(60)
@@ -909,7 +919,6 @@ toggleHandlers.ShowFPS = function(on) fpsLabel.Visible = on end
 watermark.Visible = CONFIG.Watermark
 fpsLabel.Visible = CONFIG.ShowFPS
 
--- Infinite Jump
 UserInputService.JumpRequest:Connect(function()
 	if not CONFIG.InfiniteJump then return end
 	local char = localPlayer.Character
@@ -931,7 +940,6 @@ local function isFlyKeyDown(list)
 	return false
 end
 
--- Fly
 local flyBodyVelocity, flyBodyGyro, flyHeartbeat
 
 local function stopFly()
@@ -989,7 +997,6 @@ localPlayer.CharacterAdded:Connect(function()
 	if CONFIG.Fly then task.wait(0.35); startFly() end
 end)
 
--- Silent Fly
 local silentFlyConn, silentFlyCamType, silentFlyRootLockConn, silentFlyControls
 
 local function restoreControls()
@@ -1074,7 +1081,6 @@ localPlayer.CharacterAdded:Connect(function()
 	if CONFIG.SilentFly then task.wait(0.3); startSilentFly() end
 end)
 
--- Vehicle Fly
 local vehicleFlyConn, vehicleBV, vehicleBG
 
 local function stopVehicleFly()
@@ -1144,46 +1150,65 @@ localPlayer.CharacterAdded:Connect(function(ch)
 	if CONFIG.VehicleFly and hum.SeatPart then task.wait(0.35); startVehicleFly() end
 end)
 
--- Swim
-local function applySwim()
+local swimConn = nil
+local swimBV = nil
+
+local function stopSwim()
+	if swimConn then swimConn:Disconnect(); swimConn = nil end
+	if swimBV then swimBV:Destroy(); swimBV = nil end
 	local char = localPlayer.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
-	if not hum then return end
-	if CONFIG.Swim then
-		hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
-		hum:ChangeState(Enum.HumanoidStateType.Swimming)
-	else
+	if hum then
+		hum:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
 		if hum:GetState() == Enum.HumanoidStateType.Swimming then
 			hum:ChangeState(Enum.HumanoidStateType.Running)
 		end
 	end
 end
 
+local function startSwim()
+	stopSwim()
+	local char = localPlayer.Character
+	if not char then return end
+	local root = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not root or not hum then return end
+
+	swimBV = Instance.new("BodyVelocity")
+	swimBV.Name = "KronosSwimBV"
+	swimBV.MaxForce = Vector3.new(0, 1e5, 0)
+	swimBV.Velocity = Vector3.zero
+	swimBV.Parent = root
+
+	hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+	hum:ChangeState(Enum.HumanoidStateType.Swimming)
+	hum:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+
+	swimConn = RunService.Heartbeat:Connect(function()
+		if not CONFIG.Swim then return end
+		local ch = localPlayer.Character
+		local r = ch and ch:FindFirstChild("HumanoidRootPart")
+		local h = ch and ch:FindFirstChildOfClass("Humanoid")
+		if not r or not h then return end
+
+		if math.abs(r.AssemblyLinearVelocity.Y) < 100 then
+			swimBV.Velocity = Vector3.new(0, -r.AssemblyLinearVelocity.Y * 0.9, 0)
+		end
+
+		if h:GetState() ~= Enum.HumanoidStateType.Swimming then
+			h:ChangeState(Enum.HumanoidStateType.Swimming)
+		end
+	end)
+end
+
 toggleHandlers.Swim = function(on)
-	if on then
-		applySwim()
-		task.spawn(function()
-			while CONFIG.Swim and localPlayer.Character do
-				local hum = localPlayer.Character:FindFirstChildOfClass("Humanoid")
-				if hum then
-					hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
-					if hum:GetState() ~= Enum.HumanoidStateType.Swimming then
-						hum:ChangeState(Enum.HumanoidStateType.Swimming)
-					end
-				end
-				task.wait(0.3)
-			end
-		end)
-	else
-		applySwim()
-	end
+	if on then startSwim() else stopSwim() end
 end
 
 localPlayer.CharacterAdded:Connect(function()
-	if CONFIG.Swim then task.wait(0.3); applySwim() end
+	if CONFIG.Swim then task.wait(0.3); startSwim() end
 end)
 
--- Slow Falling
 local slowFallHeartbeat
 
 local function stopSlowFalling()
@@ -1214,7 +1239,6 @@ localPlayer.CharacterAdded:Connect(function()
 	if CONFIG.SlowFalling then task.wait(0.2); startSlowFalling() end
 end)
 
--- Float
 local floatHeartbeat
 local floatLastY = nil
 
@@ -1278,7 +1302,6 @@ localPlayer.CharacterAdded:Connect(function()
 	if CONFIG.Float then task.wait(0.2); startFloat() end
 end)
 
--- TP Tool
 local tpConn
 
 local function stopTPTool()
@@ -1306,7 +1329,6 @@ toggleHandlers.TPTool = function(on)
 	if on then startTPTool() else stopTPTool() end
 end
 
--- Wall TP
 local wallTPConn
 
 local function stopWallTP()
@@ -1319,35 +1341,35 @@ local function startWallTP()
 		if not CONFIG.WallTP then return end
 		if gameProcessed then return end
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-		local mouse = localPlayer:GetMouse()
-		if not mouse or not mouse.Target then return end
-		local target = mouse.Target
-		if not target:IsA("BasePart") then return end
-		if target.Transparency >= 1 or not target.CanCollide then return end
 
 		local char = localPlayer.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
-		if not root then return end
-
 		local cam = workspace.CurrentCamera
-		local unitRay = cam:ScreenPointToRay(mouse.X, mouse.Y)
+		if not root or not cam then return end
+
+		local dir = cam.CFrame.LookVector
+		local origin = root.Position
+
 		local rayParams = RaycastParams.new()
 		rayParams.FilterType = Enum.RaycastFilterType.Exclude
 		rayParams.FilterDescendantsInstances = { char }
-		local hit = workspace:Raycast(unitRay.Origin, unitRay.Direction * 500, rayParams)
-		if not hit then return end
 
-		local origin2 = hit.Position + unitRay.Direction * 8
-		local hit2 = workspace:Raycast(origin2, -unitRay.Direction * 20, rayParams)
-		local exitPos
-		if hit2 then
-			exitPos = hit2.Position + unitRay.Direction * 3
-		else
-			exitPos = hit.Position + unitRay.Direction * 6
+		local hit = workspace:Raycast(origin, dir * 200, rayParams)
+		if not hit then
+			notify("No wall in front of you", "warn")
+			return
 		end
 
-		root.CFrame = CFrame.new(exitPos + Vector3.new(0, 2, 0))
-		notify("Wall TP", "success")
+		local wall = hit.Instance
+		if not wall or not wall:IsA("BasePart") then
+			notify("Hit is not a wall", "warn")
+			return
+		end
+
+		local wallTopY = wall.Position.Y + wall.Size.Y / 2
+		local topPos = Vector3.new(hit.Position.X, wallTopY + 4, hit.Position.Z)
+		root.CFrame = CFrame.new(topPos)
+		notify("Teleported to wall top", "success")
 	end)
 end
 
@@ -1355,31 +1377,64 @@ toggleHandlers.WallTP = function(on)
 	if on then startWallTP() else stopWallTP() end
 end
 
--- Spam
-local spamConn
+local spamTask = nil
+
+local function sendChat(msg)
+	local TextChatService = game:GetService("TextChatService")
+	if TextChatService and TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+		local channels = TextChatService:FindFirstChild("TextChannels")
+		if channels then
+			local general = channels:FindFirstChild("RBXGeneral")
+			if general then
+				pcall(function()
+					general:SendAsync(msg)
+				end)
+				return true
+			end
+		end
+	end
+	local Event = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+	if Event then
+		local req = Event:FindFirstChild("SayMessageRequest")
+		if req then
+			pcall(function()
+				req:FireServer(msg, "All")
+			end)
+			return true
+		end
+	end
+	return false
+end
 
 local function stopSpam()
-	if spamConn then spamConn:Disconnect(); spamConn = nil end
+	if spamTask then
+		task.cancel(spamTask)
+		spamTask = nil
+	end
 end
 
 local function startSpam()
 	stopSpam()
-	spamConn = RunService.Heartbeat:Connect(function()
-		if not CONFIG.Spam then return end
-		local char = localPlayer.Character
-		local tool = char and char:FindFirstChildOfClass("Tool")
-		if tool then
-			pcall(function() tool:Activate() end)
-			task.wait(CONFIG.SpamDelay / 1000)
+	spamTask = task.spawn(function()
+		while CONFIG.Spam do
+			local msg = CONFIG.SpamMessage or "hello"
+			if msg and msg ~= "" then
+				sendChat(msg)
+			end
+			task.wait(math.max(0.5, (CONFIG.SpamDelay or 1000) / 1000))
 		end
 	end)
 end
 
 toggleHandlers.Spam = function(on)
-	if on then startSpam() else stopSpam() end
+	if on then
+		startSpam()
+		notify("Chat Spam ON — sending: " .. (CONFIG.SpamMessage or "hello"), "success")
+	else
+		stopSpam()
+	end
 end
 
--- X-Ray
 local xrayOriginals = {}
 
 local function restoreXRay()
@@ -1414,12 +1469,6 @@ toggleHandlers.XRay = function(on)
 	end
 end
 
--- Spectate
-toggleHandlers.Spectate = function(on)
-	if not on then stopSpectate() end
-end
-
--- Anti-Void
 local antivoidConn
 local lastSafeCF = nil
 
@@ -1456,7 +1505,6 @@ localPlayer.CharacterAdded:Connect(function()
 	if CONFIG.AntiVoid then task.wait(0.2); startAntiVoid() end
 end)
 
--- Anti-Fling
 local antiflingConn = nil
 local antiflingGyro = nil
 
@@ -1522,7 +1570,6 @@ localPlayer.CharacterAdded:Connect(function()
 	if CONFIG.AntiFling then task.wait(0.25); startAntiFling() end
 end)
 
--- Startup config load
 task.spawn(function()
 	task.wait(0.5)
 	if K.loadConfig() then
